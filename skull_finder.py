@@ -14,26 +14,15 @@ Grindworks Defaults:
 - TODO
 """
 import random
+import globals
 
 
 class SkullFinder:
-    CELL_EXPLORED_BLANK = 0
-    CELL_UNEXPLORED = -1
-    CELL_EXPLORED_SKULL = -2
-
-    PLAYING = 0
-    WIN = 1
-    LOSE = 2
-
-    TOP_ROW = 0
-    OFFSET_SAFE_ROW = 1
-    MAX_ITERATIONS = 1000
-
     def __init__(self, row_size: int = 7, col_size: int = 7):
         self.row_size: int = row_size
         self.col_size: int = col_size
         self.skull_count: int = (row_size * col_size) // 8 + 1
-        self.status: int = self.PLAYING
+        self.status: int = globals.PLAYING
 
         self.grid_skull_data = []
         for _ in range(self.row_size):
@@ -41,11 +30,11 @@ class SkullFinder:
 
         self.grid_displayed_data = []
         for _ in range(self.row_size):
-            self.grid_displayed_data.append([self.CELL_UNEXPLORED] * self.col_size)
+            self.grid_displayed_data.append([globals.CELL_UNEXPLORED] * self.col_size)
 
     def fill_grid(self):
         placed_skulls = 0
-        max_iterations = self.MAX_ITERATIONS
+        max_iterations = globals.MAX_ITERATIONS
 
         if self.skull_count < 0:
             raise ValueError("Skull count cannot be negative.")
@@ -56,7 +45,7 @@ class SkullFinder:
                     f"Max iterations reached while placing skulls: {placed_skulls} out of {self.skull_count}.")
             max_iterations -= 1
 
-            row = random.randint(0, self.row_size - (1 + self.OFFSET_SAFE_ROW))
+            row = random.randint(0, self.row_size - (1 + globals.OFFSET_SAFE_ROW))
             col = random.randint(0, self.col_size - 1)
 
             # Check conditions for placing a skull at the selected location
@@ -67,22 +56,22 @@ class SkullFinder:
                 placed_skulls += 1
 
     def explore_cell(self, row: int, col: int, game_over: bool = False):
-        if self.grid_displayed_data[row][col] != self.CELL_UNEXPLORED:
+        if self.grid_displayed_data[row][col] != globals.CELL_UNEXPLORED:
             return
 
         if self.is_skull(row, col):
-            self.grid_displayed_data[row][col] = self.CELL_EXPLORED_SKULL
+            self.grid_displayed_data[row][col] = globals.CELL_EXPLORED_SKULL
 
             if not game_over:
                 self.lose()
         else:
             self.grid_displayed_data[row][col] = self.sum_neighboring_skulls(row, col)
 
-            if row == self.TOP_ROW and not game_over:
+            if row == globals.TOP_ROW and not game_over:
                 self.win()
 
             # Reveal all neighboring cells if the current cell is blank
-            if self.grid_displayed_data[row][col] == self.CELL_EXPLORED_BLANK:
+            if self.grid_displayed_data[row][col] == globals.CELL_EXPLORED_BLANK:
                 for x in range(-1, 2):
                     if not self.valid_row(row + x):
                         continue
@@ -135,10 +124,10 @@ class SkullFinder:
             print(row)
 
     def win(self):
-        self.status = self.WIN
+        self.status = globals.WIN
 
     def lose(self):
-        self.status = self.LOSE
+        self.status = globals.LOSE
 
     def reveal_all(self):
         for row in range(self.row_size):
@@ -194,7 +183,7 @@ if __name__ == "__main__":
         print("\nDisplayed Grid")
         skull_finder.print_displayed_grid()
 
-        if skull_finder.status == skull_finder.WIN:
+        if skull_finder.status == globals.WIN:
             print("\nYou Win!")
             skull_finder.reveal_all()
 
@@ -202,7 +191,7 @@ if __name__ == "__main__":
             skull_finder.print_displayed_grid()
             break
 
-        elif skull_finder.status == skull_finder.LOSE:
+        elif skull_finder.status == globals.LOSE:
             print("\nYou Lose!")
             skull_finder.reveal_all()
 
