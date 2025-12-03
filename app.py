@@ -30,26 +30,8 @@ class CellButton(QToolButton):
         match data:
             case globals.CELL_EXPLORED_BLANK:
                 self.setIcon(QPixmap("assets/cell-64x64-0.png"))
-            case 1:
-                self.setIcon(QPixmap("assets/cell-64x64-1.png"))
-            case 2:
-                self.setIcon(QPixmap("assets/cell-64x64-2.png"))
-            case 3:
-                self.setIcon(QPixmap("assets/cell-64x64-3.png"))
-            case 4:
-                self.setIcon(QPixmap("assets/cell-64x64-4.png"))
-            case 5:
-                self.setIcon(QPixmap("assets/cell-64x64-5.png"))
-            case 6:
-                self.setIcon(QPixmap("assets/cell-64x64-6.png"))
-            case 7:
-                self.setIcon(QPixmap("assets/cell-64x64-7.png"))
-            case 8:
-                self.setIcon(QPixmap("assets/cell-64x64-8.png"))
-            case 9:
-                self.setIcon(QPixmap("assets/cell-64x64-9.png"))
-            case 10:
-                self.setIcon(QPixmap("assets/cell-64x64-10.png"))
+            case 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9:
+                self.setIcon(QPixmap(f"assets/cell-64x64-{data}.png"))
             case globals.CELL_UNEXPLORED:
                 self.setIcon(QPixmap("assets/cell-64x64-blank.png"))
             case globals.CELL_EXPLORED_SKULL:
@@ -178,20 +160,10 @@ class MainWindow(QMainWindow):
         self.selected_row = self.skull_finder.row_size
         self.selected_col = 0
 
-        for row in self.grid:
-            for button in row:
-                self.layout.removeWidget(button)
-                button.deleteLater()
-
-        self.grid = []
+        # Replace the completed connected skull finder object with the new one for each button
         for row in range(0, self.skull_finder.row_size):
-            button_row = []
             for col in range(0, self.skull_finder.col_size):
-                button = CellButton(row=row, col=col, skull_finder=self.skull_finder, window=self)
-                self.layout.addWidget(button, row, col)
-                button_row.append(button)
-
-            self.grid.append(button_row)
+                self.grid[row][col].skull_finder = self.skull_finder
 
         self.update_grid(self.selected_row, self.selected_col)
 
