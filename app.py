@@ -145,13 +145,13 @@ class MainWindow(QMainWindow):
     def win(self):
         self.skull_finder.reveal_all()
         self.update_grid(self.selected_row, self.selected_col)
-        message = QMessageBox.information(self, "You Win!", "You Win!")
+        QMessageBox.information(self, "You Win!", "You Win!")
         self.restart()
 
     def lose(self):
         self.skull_finder.reveal_all()
         self.update_grid(self.selected_row, self.selected_col)
-        message = QMessageBox.information(self, "You Lose!", "You Lose!")
+        QMessageBox.information(self, "You Lose!", "You Lose!")
         self.restart()
 
     def restart(self):
