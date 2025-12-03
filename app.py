@@ -157,6 +157,7 @@ class MainWindow(QMainWindow):
     def restart(self):
         self.skull_finder = SkullFinder(row_size=7, col_size=7)
         self.skull_finder.fill_grid()
+        self.skull_finder.status = globals.PLAYING
         self.selected_row = self.skull_finder.row_size
         self.selected_col = 0
 
