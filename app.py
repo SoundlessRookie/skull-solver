@@ -4,7 +4,7 @@ from skull_finder import SkullFinder
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QApplication, QMainWindow, QToolButton, QWidget, QGridLayout
+from PySide6.QtWidgets import QApplication, QMainWindow, QToolButton, QWidget, QGridLayout, QMessageBox
 
 
 class CellButton(QToolButton):
@@ -63,6 +63,11 @@ class CellButton(QToolButton):
         self.window.selected_row, self.window.selected_col = self.get_coordinates()
         self.window.update_grid(self.row, self.col)
 
+        if self.skull_finder.status == globals.WIN:
+            self.window.win()
+        elif self.skull_finder.status == globals.LOSE:
+            self.window.lose()
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -72,10 +77,10 @@ class MainWindow(QMainWindow):
         # self.setFixedSize(QSize(500, 500))
 
         central = QWidget()
-        layout = QGridLayout(central)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self.layout = QGridLayout(central)
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.layout.setSpacing(0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setCentralWidget(central)
 
         self.skull_finder = SkullFinder(row_size=7, col_size=7)
@@ -88,7 +93,7 @@ class MainWindow(QMainWindow):
             button_row = []
             for col in range(0, self.skull_finder.col_size):
                 button = CellButton(row=row, col=col, skull_finder=self.skull_finder, window=self)
-                layout.addWidget(button, row, col)
+                self.layout.addWidget(button, row, col)
                 button_row.append(button)
 
             self.grid.append(button_row)
@@ -154,6 +159,41 @@ class MainWindow(QMainWindow):
                     # Go off the board into the starting area
                     self.selected_row = self.skull_finder.row_size
                     self.update_grid(self.selected_row, self.selected_col)
+
+    def win(self):
+        self.skull_finder.reveal_all()
+        self.update_grid(self.selected_row, self.selected_col)
+        message = QMessageBox.information(self, "You Win!", "You Win!")
+        self.restart()
+
+    def lose(self):
+        self.skull_finder.reveal_all()
+        self.update_grid(self.selected_row, self.selected_col)
+        message = QMessageBox.information(self, "You Lose!", "You Lose!")
+        self.restart()
+
+    def restart(self):
+        self.skull_finder = SkullFinder(row_size=7, col_size=7)
+        self.skull_finder.fill_grid()
+        self.selected_row = self.skull_finder.row_size
+        self.selected_col = 0
+
+        for row in self.grid:
+            for button in row:
+                self.layout.removeWidget(button)
+                button.deleteLater()
+
+        self.grid = []
+        for row in range(0, self.skull_finder.row_size):
+            button_row = []
+            for col in range(0, self.skull_finder.col_size):
+                button = CellButton(row=row, col=col, skull_finder=self.skull_finder, window=self)
+                self.layout.addWidget(button, row, col)
+                button_row.append(button)
+
+            self.grid.append(button_row)
+
+        self.update_grid(self.selected_row, self.selected_col)
 
 
 if __name__ == "__main__":
