@@ -284,21 +284,7 @@ class MainWindow(QMainWindow):
             if {"row": self.skull_finder.row_size - 1, "col": col} not in destinations:
                 destinations.append({"row": self.skull_finder.row_size - 1, "col": col})
 
-        # Loop 2: Compare cell value with number of non-destination neighbors
-        # If the number of non-destination neighbors is equal to the cell value, then flag all non-destination neighbors
-        for row in range(0, self.skull_finder.row_size):
-            for col in range(0, self.skull_finder.col_size):
-                if self.skull_finder.grid_displayed_data[row][col] not in range(1, 9):
-                    continue
-
-                neighbors = self.get_neighbors(row, col)
-                non_destination_neighbors = [cell for cell in neighbors if cell not in destinations]
-
-                if len(non_destination_neighbors) == self.skull_finder.grid_displayed_data[row][col]:
-                    for neighbor in non_destination_neighbors:
-                        self.auto_grid[neighbor["row"]][neighbor["col"]]["flag"] = True
-
-        # Loop 3: Compare cell value with number of flagged neighbors
+        # Loop 2: Compare cell value with number of flagged neighbors
         # If the number of flagged neighbors == the cell value, then add all non-flagged neighbors to destinations
         for row in range(0, self.skull_finder.row_size):
             for col in range(0, self.skull_finder.col_size):
@@ -314,7 +300,26 @@ class MainWindow(QMainWindow):
                         if {"row": neighbor["row"], "col": neighbor["col"]} not in destinations:
                             destinations.append({"row": neighbor["row"], "col": neighbor["col"]})
 
+        # Loop 3: Compare cell value with number of non-destination neighbors
+        # If the number of non-destination neighbors is equal to the cell value, then flag all non-destination neighbors
+        for row in range(0, self.skull_finder.row_size):
+            for col in range(0, self.skull_finder.col_size):
+                if self.skull_finder.grid_displayed_data[row][col] not in range(1, 9):
+                    continue
+
+                neighbors = self.get_neighbors(row, col)
+                non_destination_neighbors = [cell for cell in neighbors if cell not in destinations]
+
+                if len(non_destination_neighbors) == self.skull_finder.grid_displayed_data[row][col]:
+                    for neighbor in non_destination_neighbors:
+                        self.auto_grid[neighbor["row"]][neighbor["col"]]["flag"] = True
+
         # TODO Add loops for more advanced analysis
+
+        # Loop 4: Add goal to destinations if it is reachable
+        for col in range(0, self.skull_finder.col_size):
+            if self.skull_finder.grid_displayed_data[self.skull_finder.row_size - 1][col] in range(0, 9):
+                destinations.append({"row": self.skull_finder.row_size - 1, "col": col})
 
         return destinations
 
