@@ -5,10 +5,10 @@ Classic Defaults:
 - Mine count: (x-axis * y-axis / 8) + 1
   - For 7x7 grid: (7 * 7 / 8) + 1 = 8
 - No mines on the bottom row
-- Valid mine placements:
-  - Must not already have a mine in the cell
-  - No more than 2 mines neighboring the cell
-  - Less than 1/3 of the total mines in the same row
+- Valid skull placements:
+  - No skull already in the cell
+  - Less than 2 skulls neighboring the cell
+  - Less than 1/3 of the total skulls in the same row
 
 Grindworks Defaults:
 - TODO
@@ -56,6 +56,10 @@ class SkullFinder:
                 placed_skulls += 1
 
     def explore_cell(self, row: int, col: int, game_over: bool = False):
+        if row == globals.ABOVE_TOP_ROW:
+            self.win()
+            return
+
         if self.grid_displayed_data[row][col] != globals.CELL_UNEXPLORED:
             return
 
@@ -66,9 +70,6 @@ class SkullFinder:
                 self.lose()
         else:
             self.grid_displayed_data[row][col] = self.sum_neighboring_skulls(row, col)
-
-            if row == globals.TOP_ROW and not game_over:
-                self.win()
 
             # Reveal all neighboring cells if the current cell is blank
             if self.grid_displayed_data[row][col] == globals.CELL_EXPLORED_BLANK:
@@ -93,6 +94,21 @@ class SkullFinder:
                     continue
 
                 if self.is_skull(row + x, col + y):
+                    count += 1
+
+        return count
+
+    def sum_neighboring_unexplored(self, row: int, col: int):
+        count = 0
+        for x in range(-1, 2):
+            if not self.valid_row(row + x):
+                continue
+
+            for y in range(-1, 2):
+                if not self.valid_col(col + y):
+                    continue
+
+                if self.grid_displayed_data[row + x][col + y] == globals.CELL_UNEXPLORED:
                     count += 1
 
         return count
