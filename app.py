@@ -130,6 +130,8 @@ class MainWindow(QMainWindow):
         self.button_goal = GoalButton(skull_finder=self.skull_finder, window=self)
         self.layout.addWidget(self.button_goal, 0, 0, 1, 7)
 
+        self.destinations = []
+
     def toggle_auto(self):
         if not self.option_auto:
             self.option_auto = True
@@ -246,23 +248,30 @@ class MainWindow(QMainWindow):
         self.update_button_grid(self.selected_row, self.selected_col)
 
     def auto_solve(self):
-        # TODO Fix logic
         self.auto_running = True
-        destinations = self.analyze_board()
-        print("Destinations:", destinations)
+        if not self.destinations:
+            self.destinations = self.analyze_board()
+        print("Destinations:", self.destinations)
 
-        if not destinations or self.skull_finder.status != globals.PLAYING or not self.option_auto:
+        if not self.destinations or self.skull_finder.status != globals.PLAYING or not self.option_auto:
             self.auto_running = False
             self.button_auto.setDisabled(False)
+            self.button_auto.setChecked(False)
+            self.option_auto = False
             self.auto_timer.stop()
             print("End of auto solve")
             return
 
-        self.current_move_index = 0
-        # TODO Pick the best destination
-        next_destination = destinations.pop(0)
-        print("Moving to:", next_destination["row"], next_destination["col"])
-        self.button_grid[next_destination["row"]][next_destination["col"]].on_click()
+        # Check if unexplored with each move because cells with 0 will recursively explore adjacent cells with 0
+        next_destination = None
+        while self.destinations:
+            next_destination = self.destinations.pop(0)
+            if self.skull_finder.grid_displayed_data[next_destination["row"]][next_destination["col"]] == globals.CELL_UNEXPLORED:
+                break
+
+        if next_destination:
+            print("Moving to:", next_destination["row"], next_destination["col"])
+            self.button_grid[next_destination["row"]][next_destination["col"]].on_click()
 
     def analyze_board(self):
         destinations = []
