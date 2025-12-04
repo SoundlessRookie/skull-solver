@@ -122,18 +122,21 @@ class MainWindow(QMainWindow):
         self.button_auto.clicked.connect(self.toggle_auto)
         self.layout.addWidget(self.button_auto, 8, 3)
 
-        self.move_timer = QTimer()
-        self.move_timer.setInterval(1000)
+        self.auto_timer = QTimer()
+        self.auto_timer.setInterval(500)
         self.current_move_index = 0
+        self.auto_timer.timeout.connect(self.auto_solve)
 
         self.button_goal = GoalButton(skull_finder=self.skull_finder, window=self)
         self.layout.addWidget(self.button_goal, 0, 0, 1, 7)
 
     def toggle_auto(self):
-        if self.button_auto.isChecked():
+        if not self.option_auto:
             self.option_auto = True
-            self.auto_solve()
+            self.button_auto.setChecked(True)
+            self.auto_timer.start()
         else:
+            self.button_auto.setChecked(False)
             self.button_auto.setDisabled(True)
             self.option_auto = False
 
@@ -242,141 +245,71 @@ class MainWindow(QMainWindow):
 
         self.update_button_grid(self.selected_row, self.selected_col)
 
-    # def auto_solve(self):
-    #     self.auto_running = True
-#
-    #     while self.skull_finder.status == globals.PLAYING and self.option_auto:
-    #         destinations = self.analyze_board()
-    #         print("Destinations:", destinations)
-#
-    #         while len(destinations) > 0 and self.skull_finder.status == globals.PLAYING and self.option_auto:
-    #             destination = destinations.pop(0)
-    #             print("Moving to:", destination["row"], destination["col"])
-    #             self.button_grid[destination["row"]][destination["col"]].on_click()
-    #             # TODO Delay without blocking the rest of the app
-#
-    #     self.auto_running = False
-    #     self.button_auto.setDisabled(False)
-
     def auto_solve(self):
         # TODO Fix logic
         self.auto_running = True
         destinations = self.analyze_board()
         print("Destinations:", destinations)
 
-        self.move_timer.timeout.connect(lambda: self.auto_move(destinations))
-
-        if destinations:
-            self.move_timer.start()
-
-    def auto_move(self, destinations):
-        # TODO Fix logic
-        if (self.current_move_index < len(destinations) and
-                self.skull_finder.status == globals.PLAYING and
-                self.option_auto):
-            destination = destinations[0]
-            print("Moving to:", destination["row"], destination["col"])
-            self.button_grid[destination["row"]][destination["col"]].on_click()
-            self.current_move_index += 1
-        else:
-            self.move_timer.stop()
+        if not destinations or self.skull_finder.status != globals.PLAYING or not self.option_auto:
             self.auto_running = False
             self.button_auto.setDisabled(False)
+            self.auto_timer.stop()
+            print("End of auto solve")
+            return
 
-            if self.skull_finder.status == globals.PLAYING and self.option_auto:
-                self.auto_solve()
+        self.current_move_index = 0
+        # TODO Pick the best destination
+        next_destination = destinations.pop(0)
+        print("Moving to:", next_destination["row"], next_destination["col"])
+        self.button_grid[next_destination["row"]][next_destination["col"]].on_click()
 
     def analyze_board(self):
-        # TODO Fix logic
         destinations = []
-        # Loop 1: Look for guaranteed skulls and safe spaces based on a single cell's neighbors
-        for row in range(0, self.skull_finder.row_size):
-            for col in range(0, self.skull_finder.col_size):
-                value = self.skull_finder.grid_displayed_data[row][col]
+        # TODO Fix all logic after the first loop
+        # Loop 1: The bottom row in Skull Finder is always safe. Add to destinations
+        for col in range(0, self.skull_finder.col_size):
+            if self.skull_finder.grid_displayed_data[self.skull_finder.row_size - 1][col] != globals.CELL_UNEXPLORED:
+                continue
 
-                if value in range(1, 9) and value == self.skull_finder.sum_neighboring_unexplored(row, col):
-                    # Neighboring unexplored cells are guaranteed to be skulls, set risk to 1 and flag them
+            if {"row": self.skull_finder.row_size - 1, "col": col} not in destinations:
+                destinations.append({"row": self.skull_finder.row_size - 1, "col": col})
 
-                    for x in range(-1, 2):
-                        if not self.skull_finder.valid_row(row + x):
-                            continue
-
-                        for y in range(-1, 2):
-                            if not self.skull_finder.valid_col(col + y):
-                                continue
-
-                            if self.skull_finder.grid_displayed_data[row + x][col + y] == globals.CELL_UNEXPLORED:
-                                self.auto_grid[row + x][col + y]["risk"] = 1
-                                self.auto_grid[row + x][col + y]["flag"] = True
-
-                if value in range(1, 9) and value == self.sum_flagged_neighboring(row, col):
-                    # Non-flagged neighboring cells are guaranteed to be safe, set risk to 0 amd add to destinations
-
-                    for x in range(-1, 2):
-                        if not self.skull_finder.valid_row(row + x):
-                            continue
-
-                        for y in range(-1, 2):
-                            if not self.skull_finder.valid_col(col + y):
-                                continue
-
-                            if not self.auto_grid[row + x][col + y]["flag"]:
-                                self.auto_grid[row + x][col + y]["risk"] = 0
-                                if {"row": row + x, "col": col + y} not in destinations:
-                                    destinations.append({"row": row + x, "col": col + y})
-
-        # Loop 2: Look for guaranteed skulls and safe spaces based on two numbered adjacent cells' neighbors
+        # Loop 2: Compare cell value with number of non-destination neighbors
+        # If the number of non-destination neighbors is equal to the cell value, then flag all non-destination neighbors
         for row in range(0, self.skull_finder.row_size):
             for col in range(0, self.skull_finder.col_size):
                 if self.skull_finder.grid_displayed_data[row][col] not in range(1, 9):
                     continue
 
-                for x in range(-1, 2):
-                    if not self.skull_finder.valid_row(row + x):
-                        continue
+                neighbors = self.get_neighbors(row, col)
+                non_destination_neighbors = [cell for cell in neighbors if cell not in destinations]
 
-                    for y in range(-1, 2):
-                        if not self.skull_finder.valid_col(col + y):
-                            continue
+                if len(non_destination_neighbors) == self.skull_finder.grid_displayed_data[row][col]:
+                    for neighbor in non_destination_neighbors:
+                        self.auto_grid[neighbor["row"]][neighbor["col"]]["flag"] = True
 
-                        if abs(x) == abs(y):
-                            continue
+        # Loop 3: Compare cell value with number of flagged neighbors
+        # If the number of flagged neighbors == the cell value, then add all non-flagged neighbors to destinations
+        for row in range(0, self.skull_finder.row_size):
+            for col in range(0, self.skull_finder.col_size):
+                if self.skull_finder.grid_displayed_data[row][col] not in range(1, 9):
+                    continue
 
-                        row_2 = row + x
-                        col_2 = col + y
+                neighbors = self.get_neighbors(row, col)
+                flagged_neighbors = [cell for cell in neighbors if self.auto_grid[cell["row"]][cell["col"]]["flag"]]
+                non_flagged_neighbors = [cell for cell in neighbors if not self.auto_grid[cell["row"]][cell["col"]]["flag"]]
 
-                        nonflagged_neighbors_a = self.get_unexplored_nonflagged_neighbors(row, col)
-                        nonflagged_neighbors_b = self.get_unexplored_nonflagged_neighbors(row_2, col_2)
+                if len(flagged_neighbors) == self.skull_finder.grid_displayed_data[row][col]:
+                    for neighbor in non_flagged_neighbors:
+                        if {"row": neighbor["row"], "col": neighbor["col"]} not in destinations:
+                            destinations.append({"row": neighbor["row"], "col": neighbor["col"]})
 
-                        exclusive_neighbors_a = [cell for cell in nonflagged_neighbors_a if cell not in nonflagged_neighbors_b]
-                        exclusive_neighbors_b = [cell for cell in nonflagged_neighbors_b if cell not in nonflagged_neighbors_a]
-
-                        modified_value_a = self.skull_finder.grid_displayed_data[row][col] - self.sum_flagged_neighboring(row, col)
-                        modified_value_b = self.skull_finder.grid_displayed_data[row_2][col_2] - self.sum_flagged_neighboring(row_2, col_2)
-
-                        if modified_value_a - modified_value_b == len(exclusive_neighbors_a):
-                            for neighbor in exclusive_neighbors_a:
-                                self.auto_grid[neighbor["row"]][neighbor["col"]]["risk"] = 1
-                                self.auto_grid[neighbor["row"]][neighbor["col"]]["flag"] = True
-
-                            for neighbor in exclusive_neighbors_b:
-                                self.auto_grid[neighbor["row"]][neighbor["col"]]["risk"] = 0
-                                if {"row": neighbor["row"], "col": neighbor["col"]} not in destinations:
-                                    destinations.append({"row": neighbor["row"], "col": neighbor["col"]})
-
-        # Bottom row is always safe
-        for col in range(0, self.skull_finder.col_size):
-            self.auto_grid[self.skull_finder.row_size - 1][col]["risk"] = 0
-            self.auto_grid[self.skull_finder.row_size - 1][col]["flag"] = False
-            if self.skull_finder.grid_displayed_data[self.skull_finder.row_size - 1][col] != globals.CELL_UNEXPLORED:
-                return
-
-            if {"row": self.skull_finder.row_size - 1, "col": col} not in destinations:
-                destinations.append({"row": self.skull_finder.row_size - 1, "col": col})
+        # TODO Add loops for more advanced analysis
 
         return destinations
 
-    def sum_flagged_neighboring(self, row: int, col: int):
+    def sum_flagged_neighbors(self, row: int, col: int):
         count = 0
         for x in range(-1, 2):
             if not self.skull_finder.valid_row(row + x):
@@ -406,6 +339,20 @@ class MainWindow(QMainWindow):
                     eligible_cells.append({"row": row + x, "col": col + y})
 
         return eligible_cells
+
+    def get_neighbors(self, row: int, col: int):
+        neighbors = []
+        for x in range(-1, 2):
+            if not self.skull_finder.valid_row(row + x):
+                continue
+
+            for y in range(-1, 2):
+                if not self.skull_finder.valid_col(col + y):
+                    continue
+
+                neighbors.append({"row": row + x, "col": col + y})
+
+        return neighbors
 
 
 if __name__ == "__main__":
