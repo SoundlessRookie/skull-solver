@@ -1,4 +1,4 @@
-# skull-solver
+# Skull Solver
 Learning and assist tool for Skull Finder, a Minesweeper variant
 
 ## To run from source
