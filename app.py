@@ -3,8 +3,8 @@ import globals
 from skull_finder import SkullFinder
 
 from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QApplication, QMainWindow, QToolButton, QWidget, QGridLayout, QMessageBox
+from PySide6.QtGui import QPixmap, QFontDatabase, QFont
+from PySide6.QtWidgets import QApplication, QMainWindow, QToolButton, QWidget, QGridLayout, QMessageBox, QLabel
 
 
 class CellButton(QToolButton):
@@ -130,6 +130,30 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.button_goal, 0, 0, 1, 7)
 
         self.destinations = []
+
+        QFontDatabase.addApplicationFont("assets/vtRemingtonPortable.ttf")
+        vt_remington = QFontDatabase.applicationFontFamilies(0)
+
+        self.label_title_skull = QLabel("Skull")
+        self.label_title_skull.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.label_title_solver = QLabel("Finder")
+        self.label_title_solver.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.label_tutorial = QLabel("Use WASD or click red cells to move.\nCells show the number of adjacent skulls.\nAvoid skulls and reach the goal to win!")
+        self.label_tutorial.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        if vt_remington:
+            self.label_title_skull.setFont(QFont(vt_remington[0], 32))
+            self.label_title_solver.setFont(QFont(vt_remington[0], 32))
+            self.label_tutorial.setFont(QFont(vt_remington[0], 12))
+
+        self.label_title_skull.setStyleSheet("color: red;")
+        self.label_title_solver.setStyleSheet("color: red;")
+        self.layout.addWidget(self.label_title_skull, 8, 0, 1, 3)
+        self.layout.addWidget(self.label_title_solver, 8, 4, 1, 3)
+
+        self.layout.addWidget(self.label_tutorial, 9, 0, 1, 7)
 
     def toggle_auto(self):
         if not self.option_auto:
@@ -280,12 +304,19 @@ class MainWindow(QMainWindow):
             print("End of auto solve")
             return
 
+        self.destinations = self.sort_destinations()
+
         # Check if unexplored with each move because cells with 0 will recursively explore adjacent cells with 0
-        # TODO: Pick the best move rather than the first
         next_destination = None
         while self.destinations:
             destination_to_check = self.destinations.pop(0)
-            if self.skull_finder.grid_displayed_data[destination_to_check["row"]][destination_to_check["col"]] == globals.CELL_UNEXPLORED:
+
+            # Assume no access to diagonal moves in Skull Finder. Diagonals are technically possible but not intended.
+            cardinal_neighbors = self.get_cardinal_neighbors(destination_to_check["row"], destination_to_check["col"])
+            unexplored_cardinal_neighbors = [cell for cell in cardinal_neighbors if self.skull_finder.grid_displayed_data[cell["row"]][cell["col"]] != globals.CELL_UNEXPLORED]
+            is_bottom_row = destination_to_check["row"] == self.skull_finder.row_size - 1
+
+            if (unexplored_cardinal_neighbors or is_bottom_row) and self.skull_finder.grid_displayed_data[destination_to_check["row"]][destination_to_check["col"]] == globals.CELL_UNEXPLORED:
                 next_destination = destination_to_check
                 break
 
@@ -429,6 +460,42 @@ class MainWindow(QMainWindow):
                 neighbors.append({"row": row + x, "col": col + y})
 
         return neighbors
+
+    def sort_destinations(self):
+        # Sort destinations by distance from the selected cell + distance from the goal row
+        for destination in self.destinations:
+            heuristic = destination["row"]
+            distance = abs(self.selected_row - destination["row"]) + abs(self.selected_col - destination["col"])
+            destination["priority"] = heuristic + distance
+
+        sorted_destinations = sorted(self.destinations, key=lambda x: x["priority"])
+        return sorted_destinations
+
+    def pathfind_to_cell(self, target_row: int, target_col: int):
+        # Create a graph of currently explored cells and the target cell
+        graph = {}
+        for row in range(0, self.skull_finder.row_size):
+            for col in range(0, self.skull_finder.col_size):
+                if self.skull_finder.grid_displayed_data[row][col] != globals.CELL_UNEXPLORED:
+                    graph[(row, col)] = []
+
+        # Connect cardinal neighbors
+        for node in graph:
+            row = node[0]
+            col = node[1]
+            neighbors = self.get_cardinal_neighbors(row, col)
+            for neighbor in neighbors:
+                graph[node].append((neighbor["row"], neighbor["col"]))
+
+        # Pathfind to the target cell using A* algorithm
+        start_node = (self.selected_row, self.selected_col)
+        end_node = (target_row, target_col)
+        path = self.a_star(graph, start_node, end_node)
+        return path
+
+    def a_star(self, graph, start, end):
+        # TODO
+        pass
 
 
 if __name__ == "__main__":
