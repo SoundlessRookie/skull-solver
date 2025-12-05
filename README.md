@@ -5,6 +5,8 @@ Learning and assist tool for Skull Finder, a Minesweeper variant
 You must have Python (preferably 3.12) and pip installed.
 This was tested on Windows 11 but should theoretically run just fine on Mac or Linux.
 
+Clone the repository.
+
 `cd` to the project's root directory (`skull-solver`)
 
 For Windows:
