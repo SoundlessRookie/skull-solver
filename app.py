@@ -343,37 +343,6 @@ class MainWindow(QMainWindow):
 
         return destinations
 
-    def sum_flagged_neighbors(self, row: int, col: int):
-        count = 0
-        for x in range(-1, 2):
-            if not self.skull_finder.valid_row(row + x):
-                continue
-
-            for y in range(-1, 2):
-                if not self.skull_finder.valid_col(col + y):
-                    continue
-
-                if self.auto_grid[row + x][col + y]["flag"]:
-                    count += 1
-
-        return count
-
-    def get_unexplored_nonflagged_neighbors(self, row: int, col: int):
-        eligible_cells = []
-        for x in range(-1, 2):
-            if not self.skull_finder.valid_row(row + x):
-                continue
-
-            for y in range(-1, 2):
-                if not self.skull_finder.valid_col(col + y):
-                    continue
-
-                if (self.skull_finder.grid_displayed_data[row + x][col + y] == globals.CELL_UNEXPLORED and
-                        not self.auto_grid[row + x][col + y]["flag"]):
-                    eligible_cells.append({"row": row + x, "col": col + y})
-
-        return eligible_cells
-
     def get_neighbors(self, row: int, col: int):
         neighbors = []
         for x in range(-1, 2):
