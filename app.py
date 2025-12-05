@@ -254,10 +254,15 @@ class MainWindow(QMainWindow):
 
     def auto_solve(self):
         self.auto_running = True
-        self.destinations = self.analyze_board()
+        self.destinations = self.analyze_board_simple()
         # Later loops can enable earlier loops to find new destinations. Check again
         if not self.destinations:
-            self.destinations = self.analyze_board()
+            self.destinations = self.analyze_board_simple()
+
+        # Use complex analysis methods after simple analysis yields no results
+        if not self.destinations:
+            self.destinations = self.analyze_board_complex()
+
         print("Destinations:", self.destinations)
 
         explored_top_row = self.check_explored_top_row()
@@ -296,14 +301,13 @@ class MainWindow(QMainWindow):
 
         return explored_top_row
 
-    def analyze_board(self):
-        # TODO Fix all logic after the first loop
+    def analyze_board_simple(self):
         # Loop 1: The bottom row in Skull Finder is always safe. Mark as safe
         for col in range(0, self.skull_finder.col_size):
             self.auto_grid[self.skull_finder.row_size - 1][col]["safe"] = True
 
-        # Loop 2: Compare cell value with number of unexplored neighbors
-        # If the number of unexplored neighbors == the cell value, then flag all unexplored neighbors
+        # Loop 2: Compare cell value with number of unsafe unexplored neighbors
+        # If the number of unexplored unsafe neighbors == the cell value, then flag all unexplored unsafe neighbors
         for row in range(0, self.skull_finder.row_size):
             for col in range(0, self.skull_finder.col_size):
                 if self.skull_finder.grid_displayed_data[row][col] not in range(1, 10):
@@ -311,9 +315,10 @@ class MainWindow(QMainWindow):
 
                 neighbors = self.get_neighbors(row, col)
                 neighbors_unexplored = [cell for cell in neighbors if self.skull_finder.grid_displayed_data[cell["row"]][cell["col"]] == globals.CELL_UNEXPLORED]
+                neighbors_unexplored_unsafe = [cell for cell in neighbors_unexplored if not self.auto_grid[cell["row"]][cell["col"]]["safe"]]
 
-                if len(neighbors_unexplored) == self.skull_finder.grid_displayed_data[row][col]:
-                    for neighbor in neighbors_unexplored:
+                if len(neighbors_unexplored_unsafe) == self.skull_finder.grid_displayed_data[row][col]:
+                    for neighbor in neighbors_unexplored_unsafe:
                         self.auto_grid[neighbor["row"]][neighbor["col"]]["flag"] = True
 
         # Loop 3: Compare cell value with number of flagged neighbors
@@ -331,7 +336,55 @@ class MainWindow(QMainWindow):
                     for neighbor in neighbors_non_flagged:
                         self.auto_grid[neighbor["row"]][neighbor["col"]]["safe"] = True
 
-        # Loop 4: Add all unexplored safe cells to the destinations list
+        # Final loop: Add all unexplored safe cells to the destinations list
+        destinations = []
+        for row in range(0, self.skull_finder.row_size):
+            for col in range(0, self.skull_finder.col_size):
+                if self.skull_finder.grid_displayed_data[row][col] == globals.CELL_UNEXPLORED and self.auto_grid[row][col]["safe"]:
+                    if self.auto_grid[row][col]["flag"]:
+                        raise Exception(f"Cell {row}, {col} is marked as both flagged and safe")
+
+                    destinations.append({"row": row, "col": col})
+
+        return destinations
+
+    def analyze_board_complex(self):
+        # Loop 4: Advanced comparison between two cardinal neighbors (no diagonals) with values 1-9.
+        for row_1 in range(0, self.skull_finder.row_size):
+            for col_1 in range(0, self.skull_finder.col_size):
+                if self.skull_finder.grid_displayed_data[row_1][col_1] not in range(1, 10):
+                    continue
+
+                cardinal_neighbors = self.get_cardinal_neighbors(row_1, col_1)
+                for neighbor in cardinal_neighbors:
+                    row_2 = neighbor["row"]
+                    col_2 = neighbor["col"]
+                    if self.skull_finder.grid_displayed_data[row_2][col_2] not in range(1, 10):
+                        continue
+
+                    neighbors_a = self.get_neighbors(row_1, col_1)
+                    neighbors_a_flagged = [cell for cell in neighbors_a if self.auto_grid[cell["row"]][cell["col"]]["flag"]]
+                    neighbors_a_unexplored = [cell for cell in neighbors_a if self.skull_finder.grid_displayed_data[cell["row"]][cell["col"]] == globals.CELL_UNEXPLORED]
+                    neighbors_a_unexplored_non_flagged = [cell for cell in neighbors_a_unexplored if not self.auto_grid[cell["row"]][cell["col"]]["flag"]]
+
+                    neighbors_b = self.get_neighbors(row_2, col_2)
+                    neighbors_b_flagged = [cell for cell in neighbors_b if self.auto_grid[cell["row"]][cell["col"]]["flag"]]
+                    neighbors_b_unexplored = [cell for cell in neighbors_b if self.skull_finder.grid_displayed_data[cell["row"]][cell["col"]] == globals.CELL_UNEXPLORED]
+                    neighbors_b_unexplored_non_flagged = [cell for cell in neighbors_b_unexplored if not self.auto_grid[cell["row"]][cell["col"]]["flag"]]
+
+                    modified_value_a = self.skull_finder.grid_displayed_data[row_1][col_1] - len(neighbors_a_flagged)
+                    modified_value_b = self.skull_finder.grid_displayed_data[row_2][col_2] - len(neighbors_b_flagged)
+
+                    neighbors_a_unexplored_non_flagged_exclusive = [cell for cell in neighbors_a_unexplored_non_flagged if cell not in neighbors_b_unexplored_non_flagged]
+                    neighbors_b_unexplored_non_flagged_exclusive = [cell for cell in neighbors_b_unexplored_non_flagged if cell not in neighbors_a_unexplored_non_flagged]
+
+                    if modified_value_a - modified_value_b == len(neighbors_a_unexplored_non_flagged_exclusive):
+                        for cell in neighbors_a_unexplored_non_flagged_exclusive:
+                            self.auto_grid[cell["row"]][cell["col"]]["flag"] = True
+                        for cell in neighbors_b_unexplored_non_flagged_exclusive:
+                            self.auto_grid[cell["row"]][cell["col"]]["safe"] = True
+
+        # Final loop: Add all unexplored safe cells to the destinations list
         destinations = []
         for row in range(0, self.skull_finder.row_size):
             for col in range(0, self.skull_finder.col_size):
@@ -354,6 +407,23 @@ class MainWindow(QMainWindow):
                     continue
 
                 if x == 0 and y == 0:
+                    continue
+
+                neighbors.append({"row": row + x, "col": col + y})
+
+        return neighbors
+
+    def get_cardinal_neighbors(self, row: int, col: int):
+        neighbors = []
+        for x in range(-1, 2):
+            if not self.skull_finder.valid_row(row + x):
+                continue
+
+            for y in range(-1, 2):
+                if not self.skull_finder.valid_col(col + y):
+                    continue
+
+                if abs(x) == abs(y):
                     continue
 
                 neighbors.append({"row": row + x, "col": col + y})
