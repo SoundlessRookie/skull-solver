@@ -313,10 +313,10 @@ class MainWindow(QMainWindow):
 
             # Assume no access to diagonal moves in Skull Finder. Diagonals are technically possible but not intended.
             cardinal_neighbors = self.get_cardinal_neighbors(destination_to_check["row"], destination_to_check["col"])
-            unexplored_cardinal_neighbors = [cell for cell in cardinal_neighbors if self.skull_finder.grid_displayed_data[cell["row"]][cell["col"]] != globals.CELL_UNEXPLORED]
+            explored_cardinal_neighbors = [cell for cell in cardinal_neighbors if self.skull_finder.grid_displayed_data[cell["row"]][cell["col"]] != globals.CELL_UNEXPLORED]
             is_bottom_row = destination_to_check["row"] == self.skull_finder.row_size - 1
 
-            if (unexplored_cardinal_neighbors or is_bottom_row) and self.skull_finder.grid_displayed_data[destination_to_check["row"]][destination_to_check["col"]] == globals.CELL_UNEXPLORED:
+            if (explored_cardinal_neighbors or is_bottom_row) and self.skull_finder.grid_displayed_data[destination_to_check["row"]][destination_to_check["col"]] == globals.CELL_UNEXPLORED:
                 next_destination = destination_to_check
                 break
 
