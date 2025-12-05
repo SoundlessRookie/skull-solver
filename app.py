@@ -250,6 +250,10 @@ class MainWindow(QMainWindow):
 
     def auto_solve(self):
         self.auto_running = True
+        self.destinations = []
+        if not self.destinations:
+            self.destinations = self.analyze_board()
+        # Later loops can enable earlier loops to find new destinations. Check again
         if not self.destinations:
             self.destinations = self.analyze_board()
         print("Destinations:", self.destinations)
